@@ -16,6 +16,8 @@ const { OctosApi, OctosError } = require('./lib/octos-api');
 const { SessionManager, STATUS } = require('./lib/session-manager');
 const { createMainWindow } = require('./windows/main-window');
 const { OctosSiteView } = require('./windows/octos-site-view');
+const { StudioService } = require('./lib/studio/service');
+const { registerStudioIpc } = require('./studio-ipc');
 
 const PARTITION = 'persist:octos';
 const ALLOWED_ROUTES = new Set(['/', '/login', '/register', '/_authed', '/_authed/configuracoes']);
@@ -37,6 +39,7 @@ let api = null;
 let sessions = null;
 let storagePollTimer = null;
 let refreshTimer = null;
+let studio = null;
 
 /* ------------------------------------------------------------------ */
 /* Utilidades                                                          */
@@ -100,6 +103,18 @@ function bootstrap() {
   secureStore = new SecureStore({
     filePath: path.join(userData, 'session.bin'),
     cryptoProvider: createElectronCrypto(safeStorage, fallback),
+  });
+
+  // Chave da API de IA: guardada no mesmo cofre cifrado (DPAPI no Windows).
+  const aiStore = new SecureStore({
+    filePath: path.join(userData, 'ai-credentials.bin'),
+    cryptoProvider: createElectronCrypto(safeStorage, createFallbackCrypto({ keyPath: path.join(userData, 'ai.key') })),
+  });
+
+  studio = new StudioService({
+    projectsDir: path.join(userData, 'studio', 'projects'),
+    historyDir: path.join(userData, 'studio', 'history'),
+    aiStore,
   });
 
   const config = configStore.read();
@@ -307,6 +322,8 @@ function registerIpc() {
   ipcMain.on('octos:view-visible', (_event, visible) => {
     if (siteView) siteView.setVisible(Boolean(visible));
   });
+
+  registerStudioIpc({ ipcMain, service: studio, getWindow: () => mainWindow });
 }
 
 /* ------------------------------------------------------------------ */
@@ -355,6 +372,7 @@ if (!hasLock) {
   app.on('before-quit', () => {
     if (storagePollTimer) clearInterval(storagePollTimer);
     if (refreshTimer) clearInterval(refreshTimer);
+    if (studio) studio.stopAll();
   });
 
   app.on('activate', () => {
