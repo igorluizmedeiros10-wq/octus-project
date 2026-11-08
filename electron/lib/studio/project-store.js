@@ -245,10 +245,10 @@ class ProjectStore {
   /** Exporta o projeto inteiro como ZIP (inclui metadados do blueprint). */
   async exportZip(id) {
     const { raw, files } = await this.read(id);
-    const entries = files.map((file) => ({ name: `${raw.name}/${file.path}`, content: file.content }));
+    const entries = files.map((file) => ({ path: `${raw.name}/${file.path}`, data: file.content }));
     entries.push({
-      name: `${raw.name}/executive-ai-studio.json`,
-      content: JSON.stringify(
+      path: `${raw.name}/executive-ai-studio.json`,
+      data: JSON.stringify(
         {
           title: raw.title,
           language: raw.language,
