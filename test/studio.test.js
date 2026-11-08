@@ -35,6 +35,13 @@ function findFile(files, suffix) {
   return (files || []).find((file) => String(file.path).toLowerCase().endsWith(suffix));
 }
 
+async function readContent(service, projectId, filePath) {
+  const project = await service.readProject(projectId);
+  const file = project.files.find((item) => item.path === filePath);
+  assert.ok(file, `arquivo ${filePath} deve existir no projeto`);
+  return file.content;
+}
+
 test('status reporta toolchain detectada e ausência de chave de IA', () => {
   const { service } = makeService();
   const status = service.status();
@@ -49,20 +56,20 @@ test('gerador local cria projeto Python com GUI e arquivos reais em disco', asyn
   const { service } = makeService();
   const res = await service.generate({ prompt: 'Crie um bloco de notas em Python com interface gráfica', useAi: false });
 
-  assert.equal(res.source, 'local');
+  assert.match(res.source, /^local/);
   assert.equal(res.blueprint.language, 'python');
   assert.ok(res.files.length >= 2);
 
   const main = findFile(res.files, '.py');
   assert.ok(main, 'projeto Python precisa de um arquivo .py');
-  assert.ok(main.content.includes('tkinter'), 'GUI Python deve usar tkinter');
-  assert.ok(main.content.length > 500);
+
+  const content = await readContent(service, res.project.id, main.path);
+  assert.ok(content.includes('tkinter'), 'GUI Python deve usar tkinter');
+  assert.ok(content.length > 500);
 
   const read = await service.readProject(res.project.id);
-  const stored = read.files.find((file) => file.path === main.path);
-  assert.ok(stored, 'arquivo deve existir no disco do projeto');
-  assert.equal(stored.content, main.content);
   assert.ok(read.meta.title);
+  assert.ok(read.files.length >= 2);
 });
 
 test('gerador local respeita C++, C# e JavaScript com artefatos de build', async () => {
@@ -71,13 +78,17 @@ test('gerador local respeita C++, C# e JavaScript com artefatos de build', async
   const cpp = await service.generate({ prompt: 'quero um app C++ Win32 para anotações', useAi: false });
   assert.equal(cpp.blueprint.language, 'cpp');
   const cppFile = findFile(cpp.files, '.cpp');
-  assert.ok(cppFile && cppFile.content.includes('CreateWindow'), 'C++ deve criar janela Win32');
+  assert.ok(cppFile, 'C++ deve gerar arquivo .cpp');
+  const cppSource = await readContent(service, cpp.project.id, cppFile.path);
+  assert.ok(cppSource.includes('CreateWindow'), 'C++ deve criar janela Win32');
   assert.ok(findFile(cpp.files, '.bat'), 'C++ deve incluir script de compilação .bat');
 
   const csharp = await service.generate({ prompt: 'crie um aplicativo C# WinForms de tarefas', useAi: false });
   assert.equal(csharp.blueprint.language, 'csharp');
   const csFile = findFile(csharp.files, '.cs');
-  assert.ok(csFile && csFile.content.includes('Form'), 'C# deve gerar WinForms');
+  assert.ok(csFile, 'C# deve gerar arquivo .cs');
+  const csSource = await readContent(service, csharp.project.id, csFile.path);
+  assert.ok(csSource.includes('Form'), 'C# deve gerar WinForms');
   assert.ok(findFile(csharp.files, '.csproj'), 'C# deve incluir projeto MSBuild');
 
   const js = await service.generate({ prompt: 'faça um app Electron em JavaScript de calculadora', useAi: false });
@@ -138,8 +149,11 @@ test('exportação ZIP gera arquivo válido com o conteúdo do projeto', async (
   const res = await service.generate({ prompt: 'tarefas em javascript', useAi: false });
   const exported = await service.exportProject(res.project.id);
 
-  assert.ok(exported.path, 'exportação deve devolver o caminho do ZIP');
-  const buffer = fs.readFileSync(exported.path);
+  assert.ok(Buffer.isBuffer(exported.buffer), 'exportação deve devolver o conteúdo do ZIP');
+  assert.match(exported.filename, /\.zip$/);
+  assert.ok(exported.files >= 2);
+
+  const buffer = exported.buffer;
   assert.equal(buffer[0], 0x50);
   assert.equal(buffer[1], 0x4b);
   assert.ok(buffer.length > 500);
@@ -148,12 +162,14 @@ test('exportação ZIP gera arquivo válido com o conteúdo do projeto', async (
   for (const file of read.files) {
     assert.ok(buffer.includes(Buffer.from(file.path)), `ZIP deve conter ${file.path}`);
   }
+  assert.ok(buffer.includes(Buffer.from('executive-ai-studio.json')));
 });
 
 test('ZIP calcula CRC32 correto para entrada conhecida', () => {
   assert.equal(crc32(Buffer.from('123456789')), 0xcbf43926);
-  const zip = createZip([{ path: 'a.txt', content: 'conteudo' }]);
+  const zip = createZip([{ path: 'a.txt', data: 'conteudo' }]);
   assert.ok(zip.length > 40);
+  assert.throws(() => createZip([{ path: '../fora.txt', data: 'x' }]), /inválido/i);
 });
 
 test('histórico registra geração e pode ser limpo', async () => {
@@ -174,7 +190,7 @@ test('exclusão de projeto remove do gerenciador', async () => {
   const { service } = makeService();
   const res = await service.generate({ prompt: 'notas em python', useAi: false });
   await service.deleteProject(res.project.id);
-  const list = service.listProjects();
+  const list = await service.listProjects();
   assert.equal(list.some((project) => project.id === res.project.id), false);
 });
 
@@ -206,7 +222,7 @@ test('analisador identifica ELF real e calcula hashes', () => {
 test('analisador detecta PE do Windows sem executar o arquivo', () => {
   assert.equal(detectFormat(Buffer.from([0x4d, 0x5a, 0x90, 0x00])), 'PE (Windows)');
   assert.equal(detectFormat(Buffer.from([0x7f, 0x45, 0x4c, 0x46])), 'ELF (Linux/Unix)');
-  assert.equal(detectFormat(Buffer.from('#!')), 'Script (shebang)');
+  assert.equal(detectFormat(Buffer.from('#!/bin/sh\n')), 'Script (shebang)');
 });
 
 test('análise recusa arquivo vazio ou pequeno demais', () => {
