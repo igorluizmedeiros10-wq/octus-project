@@ -202,3 +202,48 @@ O Studio detecta o que está instalado e informa na interface o que falta antes 
 - A análise de executáveis é estática (cabeçalhos, seções, imports): não faz descompilação
   nem engenharia reversa de código protegido.
 
+---
+
+## 9. Baixar o instalador `.exe` pronto
+
+O instalador é gerado automaticamente em um runner **Windows** pelo GitHub Actions
+(`.github/workflows/build-windows.yml`), pois o empacotamento NSIS precisa de Windows.
+
+**Download direto (recomendado):**
+
+<https://github.com/igorluizmedeiros10-wq/octus-project/releases/latest>
+
+Baixe o arquivo `Executive AI Studio OCTOS-1.0.0-setup.exe` e execute. O instalador
+não exige administrador e permite escolher a pasta de instalação.
+
+**Alternativa — artefato do workflow:**
+
+<https://github.com/igorluizmedeiros10-wq/octus-project/actions/workflows/build-windows.yml>
+
+Cada execução publica o pacote `executive-ai-studio-windows` com:
+
+| Arquivo | Uso |
+| --- | --- |
+| `Executive AI Studio OCTOS-1.0.0-setup.exe` | Instalador NSIS para Windows 11 |
+| `Executive-AI-Studio-OCTOS-portable.zip` | Versão portátil (descompactar e rodar o `.exe` interno) |
+
+O build roda automaticamente a cada push no branch `appjet`, ao enviar uma tag `v*`
+(ex.: `git tag v1.0.0 && git push origin v1.0.0`) ou manualmente em
+**Actions → Build Windows EXE → Run workflow**. Antes de empacotar, ele executa
+`npm test`, então um release só é publicado se os testes passarem.
+
+> Se o botão *Run workflow* não aparecer, habilite em
+> **Settings → Actions → General → Allow all actions**.
+
+### Build local (na sua máquina Windows)
+
+```powershell
+npm install
+npm run dist:win
+# resultado: release\Executive AI Studio OCTOS-1.0.0-setup.exe
+```
+
+> O `.exe` não é assinado digitalmente. Na primeira execução o Windows SmartScreen pode
+> exibir "Windows protegeu o seu PC": clique em **Mais informações → Executar assim mesmo**.
+> Para remover o aviso é necessário um certificado de assinatura de código (Code Signing).
+
