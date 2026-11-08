@@ -54,6 +54,15 @@ jobs:
           Compress-Archive -Path release/win-unpacked/* -DestinationPath release/Executive-AI-Studio-OCTOS-portable.zip -Force
           Get-ChildItem release | Select-Object Name, Length
 
+      - name: Empacotar arquivos do aplicativo (código-fonte)
+        shell: pwsh
+        run: |
+          # git archive empacota exatamente os arquivos versionados do projeto
+          # (electron/, src/, assets/, test/, package.json, README, workflow),
+          # sem node_modules nem artefatos de build.
+          git archive --format=zip --prefix=executive-ai-studio/ -o release/Executive-AI-Studio-OCTOS-source.zip HEAD
+          Get-ChildItem release | Select-Object Name, Length
+
       - name: Publicar artefatos do workflow
         uses: actions/upload-artifact@v4
         with:
