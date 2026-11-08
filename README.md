@@ -211,10 +211,15 @@ O instalador é gerado automaticamente em um runner **Windows** pelo GitHub Acti
 
 **Download direto (recomendado):**
 
-<https://github.com/igorluizmedeiros10-wq/octus-project/releases/latest>
+<https://github.com/igorluizmedeiros10-wq/octus-project/releases/tag/v1.0.0>
 
-Baixe o arquivo `Executive AI Studio OCTOS-1.0.0-setup.exe` e execute. O instalador
-não exige administrador e permite escolher a pasta de instalação.
+| Arquivo | Tamanho | Link direto |
+| --- | --- | --- |
+| `Executive.AI.Studio.OCTOS-1.0.0-setup.exe` | 115,7 MB | <https://github.com/igorluizmedeiros10-wq/octus-project/releases/download/v1.0.0/Executive.AI.Studio.OCTOS-1.0.0-setup.exe> |
+| `Executive-AI-Studio-OCTOS-portable.zip` | 154,9 MB | <https://github.com/igorluizmedeiros10-wq/octus-project/releases/download/v1.0.0/Executive-AI-Studio-OCTOS-portable.zip> |
+
+Baixe o `setup.exe` e execute. O instalador não exige administrador e permite escolher a
+pasta de instalação (cria atalhos na área de trabalho e no menu Iniciar).
 
 **Alternativa — artefato do workflow:**
 
