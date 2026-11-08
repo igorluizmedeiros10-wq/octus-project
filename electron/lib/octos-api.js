@@ -154,7 +154,7 @@ class OctosApi {
 
   async login({ email, password }) {
     const payload = { email: String(email || '').trim().toLowerCase(), password: String(password || ''), app_id: this.appId };
-    const response = await this.request('/api/apps/auth/login', { method: 'POST', body: payload });
+    const response = await this.request(this.appPath('/auth/login'), { method: 'POST', body: payload });
 
     if (response.status === 400 || response.status === 401) {
       throw new OctosError('E-mail ou senha incorretos.', { code: 'invalid_credentials', status: response.status });
@@ -194,7 +194,7 @@ class OctosApi {
       app_id: this.appId,
       ...(challengeId ? { challenge_id: challengeId } : {}),
     };
-    const response = await this.request('/api/apps/auth/verify-otp', { method: 'POST', body: payload });
+    const response = await this.request(this.appPath('/auth/verify-otp'), { method: 'POST', body: payload });
     if (!response.ok) {
       throw new OctosError(messageFromResponse(response, 'Código de verificação inválido.'), {
         code: 'invalid_otp',
@@ -213,7 +213,7 @@ class OctosApi {
       full_name: String(fullName || '').trim(),
       app_id: this.appId,
     };
-    const response = await this.request('/api/apps/auth/register', { method: 'POST', body: payload });
+    const response = await this.request(this.appPath('/auth/register'), { method: 'POST', body: payload });
     if (response.status === 409) {
       throw new OctosError('Já existe uma conta OCTOS com este e-mail.', { code: 'email_taken', status: 409 });
     }
@@ -229,7 +229,7 @@ class OctosApi {
 
   async requestPasswordReset(email) {
     const payload = { email: String(email || '').trim().toLowerCase(), app_id: this.appId };
-    const response = await this.request('/api/apps/auth/reset-password-request', { method: 'POST', body: payload });
+    const response = await this.request(this.appPath('/auth/reset-password-request'), { method: 'POST', body: payload });
     if (!response.ok) {
       throw new OctosError(messageFromResponse(response, 'Não foi possível solicitar a recuperação de senha.'), {
         code: 'reset_request_failed',
@@ -241,7 +241,7 @@ class OctosApi {
 
   async resetPassword({ token, password }) {
     const payload = { token: String(token || '').trim(), new_password: String(password || ''), app_id: this.appId };
-    const response = await this.request('/api/apps/auth/reset-password', { method: 'POST', body: payload });
+    const response = await this.request(this.appPath('/auth/reset-password'), { method: 'POST', body: payload });
     if (!response.ok) {
       throw new OctosError(messageFromResponse(response, 'Não foi possível redefinir a senha.'), {
         code: 'reset_failed',
@@ -254,7 +254,7 @@ class OctosApi {
   async logout(token) {
     if (!token) return true;
     try {
-      const response = await this.request('/api/apps/auth/logout', { method: 'POST', body: {}, token });
+      const response = await this.request(this.appPath('/auth/logout'), { method: 'POST', body: {}, token });
       return response.ok || response.status === 401;
     } catch {
       return false;
@@ -265,8 +265,8 @@ class OctosApi {
   async me(token) {
     if (!token) throw new OctosError('Sessão ausente.', { code: 'unauthorized', status: 401 });
     const paths = [];
-    if (this.appId) paths.push(`/api/apps/${this.appId}/entities/User/me`);
-    if (this.appId) paths.push(`/api/apps/${this.appId}/auth/me`);
+    if (this.appId) paths.push(this.appPath('/entities/User/me'));
+    if (this.appId) paths.push(this.appPath('/auth/me'));
 
     let lastStatus = 0;
     for (const path of paths) {
