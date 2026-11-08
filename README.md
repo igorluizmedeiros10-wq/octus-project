@@ -217,6 +217,12 @@ O instalador é gerado automaticamente em um runner **Windows** pelo GitHub Acti
 | --- | --- | --- |
 | `Executive.AI.Studio.OCTOS-1.0.0-setup.exe` | 115,7 MB | <https://github.com/igorluizmedeiros10-wq/octus-project/releases/download/v1.0.0/Executive.AI.Studio.OCTOS-1.0.0-setup.exe> |
 | `Executive-AI-Studio-OCTOS-portable.zip` | 154,9 MB | <https://github.com/igorluizmedeiros10-wq/octus-project/releases/download/v1.0.0/Executive-AI-Studio-OCTOS-portable.zip> |
+| `Executive-AI-Studio-OCTOS-source.zip` | arquivos do app | <https://github.com/igorluizmedeiros10-wq/octus-project/releases/download/v1.0.0/Executive-AI-Studio-OCTOS-source.zip> |
+
+O `source.zip` contém os arquivos do aplicativo (código-fonte completo: `electron/`,
+`src/`, `assets/`, `test/`, `package.json`, `package-lock.json`, README e o workflow),
+sem `node_modules` e sem artefatos de build — útil para abrir no seu ambiente,
+conferir o código e rodar `npm install && npm start`.
 
 Baixe o `setup.exe` e execute. O instalador não exige administrador e permite escolher a
 pasta de instalação (cria atalhos na área de trabalho e no menu Iniciar).
@@ -231,6 +237,7 @@ Cada execução publica o pacote `executive-ai-studio-windows` com:
 | --- | --- |
 | `Executive AI Studio OCTOS-1.0.0-setup.exe` | Instalador NSIS para Windows 11 |
 | `Executive-AI-Studio-OCTOS-portable.zip` | Versão portátil (descompactar e rodar o `.exe` interno) |
+| `Executive-AI-Studio-OCTOS-source.zip` | Arquivos do aplicativo (código-fonte completo) |
 
 O build roda automaticamente a cada push no branch `appjet`, ao enviar uma tag `v*`
 (ex.: `git tag v1.0.0 && git push origin v1.0.0`) ou manualmente em
