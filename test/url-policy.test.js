@@ -35,7 +35,7 @@ test('rejeita URL com credenciais embutidas e entradas inválidas', () => {
   assert.equal(validateOctosUrl('https://user:pass@octos-access-core.base44.app').ok, false);
   assert.equal(validateOctosUrl('nao-e-url').ok, false);
   assert.equal(validateOctosUrl('javascript:alert(1)').ok, false);
-  assert.equal(validateOctosUrl(''), .ok === undefined ? false : false);
+  assert.equal(validateOctosUrl('').ok, false);
 });
 
 test('permite navegação no próprio OCTOS e nos provedores oficiais de login', () => {
