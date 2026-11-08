@@ -87,11 +87,13 @@ function mergeUsers(apiUser, tokenUser) {
   const primary = sanitizeUser(apiUser || {});
   const secondary = tokenUser ? sanitizeUser(tokenUser) : null;
   if (!secondary) return primary;
+  const primaryName = primary.fullName && primary.fullName !== primary.email ? primary.fullName : '';
+  const secondaryName = secondary.fullName && secondary.fullName !== secondary.email ? secondary.fullName : '';
   const merged = {
     ...primary,
     id: primary.id || secondary.id,
     email: primary.email || secondary.email,
-    fullName: primary.fullName || secondary.fullName,
+    fullName: primaryName || secondaryName || primary.email || secondary.email,
     avatarUrl: primary.avatarUrl || secondary.avatarUrl,
     role: primary.role && primary.role !== 'user' ? primary.role : secondary.role,
     status: primary.status || secondary.status,

@@ -79,7 +79,9 @@ test('arquivo corrompido ou adulterado não é aceito', () => {
   store.write({ token: 'abc1234567890' });
 
   const payload = JSON.parse(fs.readFileSync(filePath, 'utf8'));
-  payload.data = Buffer.from('conteudo- adulterado').toString('base64');
+  const cipher = Buffer.from(payload.payload, 'base64');
+  cipher[cipher.length - 1] = cipher[cipher.length - 1] ^ 0xff;
+  payload.payload = cipher.toString('base64');
   fs.writeFileSync(filePath, JSON.stringify(payload));
 
   assert.equal(store.read(), null);
