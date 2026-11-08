@@ -207,11 +207,13 @@ test('verificação de compilação Python usa o interpretador real', async (t) 
   assert.ok(report.steps.length >= 1);
 });
 
-test('analisador identifica ELF real e calcula hashes', () => {
-  const binary = fs.readFileSync('/usr/bin/git');
-  const report = analyzeBuffer(binary, { filename: 'git' });
+test('analisador identifica binário real e calcula hashes', () => {
+  // Usa o próprio executável do Node: ELF no Linux, PE no Windows.
+  const binary = fs.readFileSync(process.execPath);
+  const report = analyzeBuffer(binary, { filename: path.basename(process.execPath) });
 
-  assert.match(String(report.format), /ELF/);
+  const expected = process.platform === 'win32' ? /PE/ : /ELF/;
+  assert.match(String(report.format), expected);
   assert.equal(report.hashes.sha256.length, 64);
   assert.equal(report.hashes.md5.length, 32);
   assert.ok(report.libraries, 'relatório deve listar bibliotecas');
