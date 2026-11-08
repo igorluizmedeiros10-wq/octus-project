@@ -121,3 +121,84 @@ Os testes cobrem:
 
 > Os testes usam respostas HTTP simuladas para os endpoints oficiais: eles validam o
 > comportamento do cliente, não substituem um teste com uma conta real no OCTOS.
+
+---
+
+## 6. Executive AI Studio (gerador de aplicativos)
+
+Além da conexão com o OCTOS, o app inclui o **Executive AI Studio**: chat de IA que gera
+projetos completos de aplicativos para PC.
+
+| Requisito | Como foi implementado |
+| --- | --- |
+| Chat integrado com IA | `electron/lib/studio/ai-client.js` — API compatível com OpenAI, com streaming (SSE) e cancelamento |
+| Campo de comando | Área de mensagem central; a linguagem é detectada do texto ou escolhida nos chips |
+| C++, C#, Python, JavaScript | Geradores reais em `electron/lib/studio/generators/` (Win32/GDI, WinForms, Tkinter, Electron) |
+| Interfaces gráficas Windows | Cada projeto sai com janela nativa, tema escuro e detalhes em azul neon |
+| Visualizar e testar | `build-runner.js` compila e executa o projeto; o console exibe a saída real do processo |
+| Exportar e gerar `.EXE` | ZIP do projeto (`exportProject`) + scripts de build (`build.ps1`/`build.bat`, `dotnet publish`, `pyinstaller`, `electron-builder`) |
+| Gerenciador de projetos | `project-store.js` — criar, abrir, editar arquivos, excluir, revelar no Explorer |
+| Histórico de conversas e alterações | `history-store.js` — mensagens e log de alterações por projeto, com limpeza |
+| Análise de executáveis | `exe-analyzer.js` — PE/ELF: arquitetura, subsistema, seções, imports, DLLs, entropia, SHA-256/MD5, sem executar o arquivo |
+
+### Chave de IA (opcional)
+
+O Studio funciona sem chave: nesse caso usa o **gerador local determinístico**, que produz
+projetos reais e compiláveis a partir da descrição. Para usar um modelo de IA, informe em
+**Configurações → IA** a chave, o endpoint (padrão `https://api.openai.com/v1`) e o modelo.
+A chave é guardada cifrada via `safeStorage` e nunca é enviada ao renderer.
+
+### Análise de executáveis
+
+A aba **Análise** aceita apenas arquivos que o usuário escolhe no disco. O arquivo é lido em
+memória e interpretado — nunca executado. São exibidos formato, arquitetura, timestamp,
+subsistema, seções com entropia, bibliotecas importadas, símbolos exportados e hashes.
+
+---
+
+## 7. Gerar o instalador `.EXE` (Windows 11)
+
+O empacotamento usa `electron-builder` com alvo **NSIS** (instalador com escolha de diretório,
+sem exigir administrador).
+
+```bash
+npm install
+npm run dist:win
+```
+
+Resultado em `release/`:
+
+```
+release/Executive AI Studio OCTOS-1.0.0-setup.exe   # instalador
+release/win-unpacked/                               # versão portátil
+```
+
+Configuração em `package.json → build`: `appId com.executiveaistudio.octos`, `target nsis`,
+`artifactName ${productName}-${version}-setup.${ext}`.
+
+> O instalador precisa ser gerado em uma máquina Windows (ou runner Windows), pois
+> `electron-builder` usa as ferramentas de assinatura/empacotamento do sistema. Neste
+> ambiente Linux o código é testado (`npm test`), mas o `.exe` final não é produzido aqui.
+
+### Toolchains para compilar os projetos gerados
+
+| Linguagem | Necessário para gerar o `.EXE` |
+| --- | --- |
+| C++ | Visual Studio Build Tools (MSVC) ou MinGW-w64 |
+| C# | .NET SDK 8+ (`dotnet publish -r win-x64`) |
+| Python | Python 3.10+ e `pip install pyinstaller` |
+| JavaScript | Node.js 20+ e `npm install` no projeto gerado |
+
+O Studio detecta o que está instalado e informa na interface o que falta antes de compilar.
+
+---
+
+## 8. Limites conhecidos
+
+- O login com Google depende de o OCTOS/Base44 permitir o popup OAuth dentro da janela
+  integrada; se o provedor exigir uma janela externa, o app abre o navegador padrão.
+- A geração por IA exige uma chave válida do provedor escolhido; sem ela o Studio usa o
+  gerador local, que é determinístico e não inventa funcionalidades não pedidas.
+- A análise de executáveis é estática (cabeçalhos, seções, imports): não faz descompilação
+  nem engenharia reversa de código protegido.
+
