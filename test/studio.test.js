@@ -81,7 +81,7 @@ test('gerador local respeita C++, C# e JavaScript com artefatos de build', async
   assert.ok(cppFile, 'C++ deve gerar arquivo .cpp');
   const cppSource = await readContent(service, cpp.project.id, cppFile.path);
   assert.ok(cppSource.includes('CreateWindow'), 'C++ deve criar janela Win32');
-  assert.ok(findFile(cpp.files, '.bat'), 'C++ deve incluir script de compilação .bat');
+  assert.ok(findFile(cpp.files, '.ps1'), 'C++ deve incluir script PowerShell de compilação');
 
   const csharp = await service.generate({ prompt: 'crie um aplicativo C# WinForms de tarefas', useAi: false });
   assert.equal(csharp.blueprint.language, 'csharp');
