@@ -1,0 +1,45 @@
+{
+  "name": "executive-ai-studio-octos",
+  "productName": "Executive AI Studio OCTOS",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Aplicativo desktop para Windows 11 que integra o Executive AI Studio ao site OCTOS (Base44) usando a autenticação oficial.",
+  "main": "electron/main.js",
+  "author": "Executive AI Studio",
+  "license": "UNLICENSED",
+  "engines": {
+    "node": ">=20"
+  },
+  "scripts": {
+    "start": "electron .",
+    "test": "node --test test/*.test.js",
+    "test:ui": "node test/ui/run-ui-test.js",
+    "smoke": "node test/ui/run-ui-test.js --smoke",
+    "dist:win": "electron-builder --win nsis"
+  },
+  "build": {
+    "appId": "com.executiveaistudio.octos",
+    "productName": "Executive AI Studio OCTOS",
+    "directories": {
+      "output": "release"
+    },
+    "files": [
+      "electron/**/*",
+      "src/**/*",
+      "assets/**/*",
+      "package.json"
+    ],
+    "win": {
+      "target": [
+        "nsis"
+      ],
+      "artifactName": "${productName}-${version}-setup.${ext}"
+    },
+    "nsis": {
+      "oneClick": false,
+      "perMachine": false,
+      "allowToChangeInstallationDirectory": true,
+      "deleteAppDataOnUninstall": false
+    }
+  }
+}
