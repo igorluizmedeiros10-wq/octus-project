@@ -434,11 +434,20 @@
           appendConsole(res.stop && res.stop.stopped ? '\n[processo encerrado]\n' : '\n[nenhum processo em execução]\n');
         } else if (action === 'export-zip') {
           const res = await call(studio.exportProject(state.activeId));
-          toast(`ZIP salvo em ${res.path || res.saved || 'disco'}.`, 'ok');
-          appendConsole(`\nexportado: ${res.path || res.saved || ''}\n`);
+          if (!res.saved) {
+            appendConsole('\n[exportação cancelada]\n');
+            return;
+          }
+          toast(`ZIP salvo em ${res.path}.`, 'ok');
+          appendConsole(`\nexportado: ${res.path}\n`);
         } else if (action === 'export-folder') {
           const res = await call(studio.exportProjectFolder(state.activeId));
-          toast(`Projeto exportado para ${res.directory || res.path || 'disco'}.`, 'ok');
+          if (!res.saved) {
+            appendConsole('\n[exportação cancelada]\n');
+            return;
+          }
+          toast(`Projeto exportado para ${res.dir || res.path}.`, 'ok');
+          appendConsole(`\npasta exportada: ${res.dir || res.path}\n`);
         } else if (action === 'reveal') {
           await call(studio.revealProject(state.activeId));
         } else if (action === 'analyze') {
