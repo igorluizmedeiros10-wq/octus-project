@@ -337,7 +337,12 @@ if (!hasLock) {
 
     if (SMOKE_TEST) {
       setTimeout(() => {
-        process.stdout.write(`${JSON.stringify({ smoke: true, ...publicSnapshot() })}\n`);
+        const report = {
+          smoke: true,
+          appReady: app.isReady() && Boolean(mainWindow && !mainWindow.isDestroyed()),
+          ...publicSnapshot(),
+        };
+        process.stdout.write(`${JSON.stringify(report)}\n`);
         app.quit();
       }, Number(process.env.OCTOS_SMOKE_MS || 9000));
     }

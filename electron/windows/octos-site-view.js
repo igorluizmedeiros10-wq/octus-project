@@ -225,12 +225,21 @@ class OctosSiteView {
 
   info() {
     if (!this.view || this.view.webContents.isDestroyed()) {
-      return { url: null, title: null, loading: this.loading, visible: this.visible, bounds: { ...this.bounds } };
+      return {
+        url: null,
+        title: null,
+        loading: this.loading,
+        loaded: false,
+        visible: this.visible,
+        bounds: { ...this.bounds },
+      };
     }
+    const url = this.view.webContents.getURL();
     return {
-      url: this.view.webContents.getURL(),
+      url,
       title: this.view.webContents.getTitle(),
       loading: this.loading,
+      loaded: Boolean(url) && !this.loading && !this.lastError,
       visible: this.visible,
       bounds: { ...this.bounds },
       error: this.lastError,
