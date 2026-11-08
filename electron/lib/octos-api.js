@@ -85,6 +85,15 @@ class OctosApi {
     if (typeof appId === 'string' && appId) this.appId = appId;
   }
 
+  /**
+   * Rotas oficiais verificadas contra a API real da plataforma:
+   * POST https://app.base44.com/api/apps/{appId}/auth/login -> 400 "Invalid email or password"
+   * (sem o appId no caminho a rota responde 404).
+   */
+  appPath(suffix) {
+    return this.appId ? `/api/apps/${this.appId}${suffix}` : `/api/apps${suffix}`;
+  }
+
   async _fetchJson(base, path, { method = 'GET', body, token, headers = {} } = {}) {
     const controller = new AbortController();
     const timer = setTimeout(() => controller.abort(), this.timeoutMs);
