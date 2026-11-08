@@ -12,7 +12,7 @@
   },
   "scripts": {
     "start": "electron .",
-    "test": "node --test test/*.test.js",
+    "test": "node --test test/config-store.test.js test/octos-api.test.js test/secure-store.test.js test/session-manager.test.js test/studio.test.js test/url-policy.test.js test/user.test.js",
     "smoke": "node test/smoke/run-smoke.js",
     "dist:win": "electron-builder --win nsis"
   },
