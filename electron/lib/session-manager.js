@@ -2,6 +2,7 @@
 
 const { EventEmitter } = require('node:events');
 const { sanitizeUser, userFromToken, mergeUsers } = require('./user');
+const { OctosError } = require('./octos-api');
 
 /**
  * Gerencia o ciclo de vida da sessão oficial do OCTOS:
@@ -148,10 +149,10 @@ class SessionManager extends EventEmitter {
   async signIn({ email, password }) {
     const normalizedEmail = String(email || '').trim().toLowerCase();
     if (!normalizedEmail || !/^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(normalizedEmail)) {
-      throw new Error('Informe um e-mail válido.');
+      throw new OctosError('Informe um e-mail válido.', { code: 'invalid_input' });
     }
     if (typeof password !== 'string' || password.length < 6) {
-      throw new Error('A senha precisa ter pelo menos 6 caracteres.');
+      throw new OctosError('A senha precisa ter pelo menos 6 caracteres.', { code: 'invalid_input' });
     }
 
     this._update({ status: STATUS.CONNECTING, error: null });
@@ -256,10 +257,57 @@ class SessionManager extends EventEmitter {
     return this._validate(this._token, user, this._state.user ? 'refresh' : 'stored');
   }
 
+  /** Cadastro de nova conta no sistema oficial do OCTOS (nunca cria conta local). */
+  async register({ email, password, fullName }) {
+    const normalizedEmail = String(email || '').trim().toLowerCase();
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(normalizedEmail)) {
+      throw new OctosError('Informe um e-mail válido.', { code: 'invalid_input' });
+    }
+    if (typeof password !== 'string' || password.length < 8) {
+      throw new OctosError('A senha precisa ter pelo menos 8 caracteres.', { code: 'invalid_input' });
+    }
+    this._update({ status: STATUS.CONNECTING, error: null });
+    try {
+      const result = await this.api.register({ email: normalizedEmail, password, fullName });
+      if (result.token) {
+        await this.adoptToken(result.token, { source: 'register' });
+        return { token: result.token, requiresVerification: false, state: this.state() };
+      }
+      this._update({
+        status: STATUS.DISCONNECTED,
+        pendingEmail: normalizedEmail,
+        error: {
+          code: 'verification_required',
+          message: 'Conta criada no OCTOS. Confirme o e-mail de verificação e entre novamente.',
+        },
+      });
+      return { token: null, requiresVerification: true, state: this.state() };
+    } catch (error) {
+      this._update({
+        status: STATUS.DISCONNECTED,
+        error: { code: error.code || 'register_failed', message: error.message },
+      });
+      throw error;
+    }
+  }
+
   async requestPasswordReset(email) {
     const normalized = String(email || '').trim().toLowerCase();
-    if (!/^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(normalized)) throw new Error('Informe um e-mail válido.');
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(normalized)) {
+      throw new OctosError('Informe um e-mail válido.', { code: 'invalid_input' });
+    }
     await this.api.requestPasswordReset(normalized);
+    return true;
+  }
+
+  async resetPassword({ token, password }) {
+    if (!token || String(token).trim().length < 10) {
+      throw new OctosError('Informe o token de recuperação recebido por e-mail.', { code: 'invalid_input' });
+    }
+    if (typeof password !== 'string' || password.length < 8) {
+      throw new OctosError('A nova senha precisa ter pelo menos 8 caracteres.', { code: 'invalid_input' });
+    }
+    await this.api.resetPassword({ token, password });
     return true;
   }
 
