@@ -1,0 +1,84 @@
+name: Build Windows EXE
+
+# Gera o instalador NSIS (.exe) do Executive AI Studio em um runner Windows real
+# e publica o arquivo para download em Releases + Artifacts do Actions.
+
+on:
+  push:
+    branches: [appjet]
+    tags: ["v*"]
+  workflow_dispatch:
+    inputs:
+      create_release:
+        description: "Publicar o instalador como release (download direto)"
+        type: boolean
+        default: true
+
+permissions:
+  contents: write
+
+concurrency:
+  group: windows-exe-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    name: Instalador Windows 11
+    runs-on: windows-latest
+    timeout-minutes: 45
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Node.js 22
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Instalar dependências
+        run: npm ci
+
+      - name: Testes automatizados
+        run: npm test
+
+      - name: Gerar instalador NSIS (.exe)
+        run: npm run dist:win -- --publish never
+        env:
+          CSC_IDENTITY_AUTO_DISCOVERY: "false"
+
+      - name: Empacotar versão portátil (zip)
+        shell: pwsh
+        run: |
+          Compress-Archive -Path release/win-unpacked/* -DestinationPath release/Executive-AI-Studio-OCTOS-portable.zip -Force
+          Get-ChildItem release | Select-Object Name, Length
+
+      - name: Publicar artefatos do workflow
+        uses: actions/upload-artifact@v4
+        with:
+          name: executive-ai-studio-windows
+          path: |
+            release/*.exe
+            release/*.zip
+          if-no-files-found: error
+          retention-days: 30
+
+      - name: Publicar release para download
+        if: startsWith(github.ref, 'refs/tags/v') || (github.event_name == 'workflow_dispatch' && github.event.inputs.create_release == 'true')
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          $tag = if ("${{ github.ref }}" -like "refs/tags/*") { "${{ github.ref_name }}" } else { "v1.0.0-build.${{ github.run_number }}" }
+          Write-Host "Release: $tag"
+          gh release view $tag 2>$null
+          if ($LASTEXITCODE -eq 0) {
+            gh release upload $tag release/*.exe release/*.zip --clobber
+          } else {
+            gh release create $tag release/*.exe release/*.zip `
+              --title "Executive AI Studio OCTOS $tag" `
+              --notes "Instalador para Windows 11 gerado automaticamente pelo GitHub Actions. Commit: ${{ github.sha }}. Baixe o arquivo Executive AI Studio OCTOS-1.0.0-setup.exe e execute; nao requer administrador." `
+              --latest
+          }
+          gh release view $tag --json url,tagName,assets --jq '.url'
