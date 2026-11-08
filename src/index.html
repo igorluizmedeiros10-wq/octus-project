@@ -1,0 +1,239 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+  <head>
+    <meta charset="utf-8" />
+    <meta
+      http-equiv="Content-Security-Policy"
+      content="default-src 'none'; img-src 'self' data:; style-src 'self'; script-src 'self'; font-src 'self'; connect-src 'none'; form-action 'none'; base-uri 'none'; frame-ancestors 'none'"
+    />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Executive AI Studio — OCTOS</title>
+    <link rel="stylesheet" href="styles.css" />
+  </head>
+  <body>
+    <div class="app">
+      <header class="topbar">
+        <div class="brand">
+          <img class="brand__logo" src="../assets/octos-logo.svg" alt="Logo OCTOS" width="40" height="40" />
+          <div class="brand__text">
+            <span class="brand__name">OCTOS</span>
+            <span class="brand__sub">Executive AI Studio</span>
+          </div>
+        </div>
+
+        <div class="status" id="status" data-state="unknown" role="status" aria-live="polite">
+          <span class="status__dot" aria-hidden="true"></span>
+          <span class="status__label" id="status-label">Verificando conexão…</span>
+        </div>
+
+        <div class="topbar__actions">
+          <button class="btn btn--ghost" id="btn-open-site" type="button">Abrir OCTOS</button>
+          <button class="btn btn--ghost" id="btn-settings" type="button">Configurações</button>
+        </div>
+      </header>
+
+      <main class="layout">
+        <aside class="panel" id="panel">
+          <!-- Desconectado -->
+          <section class="view" id="view-disconnected">
+            <div class="hero">
+              <img class="hero__logo" src="../assets/octos-logo.svg" alt="Logo OCTOS" width="56" height="56" />
+              <h1 class="hero__title">Conecte-se ao OCTOS</h1>
+              <p class="hero__text">
+                Entre com a mesma conta do site OCTOS. A autenticação é a oficial do Base44 — nenhuma conta paralela é criada.
+              </p>
+            </div>
+
+            <button class="btn btn--primary btn--connect" id="btn-connect" type="button">
+              CONECTAR AO OCTOS
+            </button>
+
+            <div class="divider"><span>ou entre no aplicativo</span></div>
+
+            <form class="form" id="form-login" novalidate>
+              <label class="field">
+                <span class="field__label">E-mail</span>
+                <input class="field__input" id="login-email" type="email" autocomplete="username" placeholder="voce@empresa.com" required />
+              </label>
+              <label class="field">
+                <span class="field__label">Senha</span>
+                <input class="field__input" id="login-password" type="password" autocomplete="current-password" placeholder="Sua senha do OCTOS" required />
+              </label>
+              <button class="btn btn--primary" id="btn-login" type="submit">Entrar</button>
+            </form>
+
+            <button class="btn btn--google" id="btn-google" type="button">
+              <span class="google-mark" aria-hidden="true">G</span>
+              Entrar com Google
+            </button>
+
+            <div class="links">
+              <button class="link" id="btn-register" type="button">Criar conta</button>
+              <span class="links__sep" aria-hidden="true">•</span>
+              <button class="link" id="btn-forgot" type="button">Esqueci minha senha</button>
+            </div>
+
+            <p class="note">
+              Sua senha é enviada diretamente ao OCTOS por HTTPS e nunca é gravada neste aplicativo.
+            </p>
+          </section>
+
+          <!-- Conectando -->
+          <section class="view view--center" id="view-connecting" hidden>
+            <div class="spinner" aria-hidden="true"></div>
+            <h2 class="view__title">Conectando ao OCTOS…</h2>
+            <p class="view__text" id="connecting-text">Validando sua sessão oficial.</p>
+          </section>
+
+          <!-- Conectado -->
+          <section class="view" id="view-connected" hidden>
+            <div class="profile">
+              <img class="profile__avatar" id="profile-avatar" src="../assets/octos-logo.svg" alt="Foto do perfil" width="72" height="72" />
+              <div class="profile__info">
+                <h2 class="profile__name" id="profile-name">Usuário OCTOS</h2>
+                <p class="profile__email" id="profile-email"></p>
+                <div class="chips">
+                  <span class="chip chip--ok" id="profile-status">Sessão ativa</span>
+                  <span class="chip" id="profile-role" hidden></span>
+                </div>
+              </div>
+            </div>
+
+            <dl class="meta">
+              <div class="meta__row"><dt>Conta</dt><dd id="meta-account">—</dd></div>
+              <div class="meta__row"><dt>Última sincronização</dt><dd id="meta-sync">—</dd></div>
+              <div class="meta__row"><dt>Servidor</dt><dd id="meta-server">—</dd></div>
+            </dl>
+
+            <div class="actions">
+              <button class="btn btn--primary" id="btn-refresh" type="button">Sincronizar sessão</button>
+              <button class="btn btn--danger" id="btn-disconnect" type="button">DESCONECTAR</button>
+            </div>
+          </section>
+
+          <!-- Bloqueado -->
+          <section class="view view--center" id="view-blocked" hidden>
+            <div class="alert-icon" aria-hidden="true">!</div>
+            <h2 class="view__title">Acesso bloqueado pelo OCTOS</h2>
+            <p class="view__text" id="blocked-text">
+              Sua conta está bloqueada ou suspensa. O aplicativo respeita as permissões definidas no site OCTOS.
+            </p>
+            <button class="btn btn--danger" id="btn-blocked-disconnect" type="button">DESCONECTAR</button>
+          </section>
+
+          <!-- Verificação em duas etapas -->
+          <section class="view" id="view-otp" hidden>
+            <h2 class="view__title">Confirme o código</h2>
+            <p class="view__text">O OCTOS enviou um código de verificação para <strong id="otp-email"></strong>.</p>
+            <form class="form" id="form-otp" novalidate>
+              <label class="field">
+                <span class="field__label">Código recebido</span>
+                <input class="field__input field__input--code" id="otp-code" inputmode="numeric" autocomplete="one-time-code" maxlength="8" placeholder="000000" required />
+              </label>
+              <button class="btn btn--primary" type="submit">Confirmar</button>
+            </form>
+            <button class="link" id="btn-otp-cancel" type="button">Voltar</button>
+          </section>
+
+          <!-- Erro -->
+          <section class="view view--center" id="view-error" hidden>
+            <div class="alert-icon alert-icon--error" aria-hidden="true">×</div>
+            <h2 class="view__title">Falha na conexão</h2>
+            <p class="view__text" id="error-text">Não foi possível falar com o OCTOS.</p>
+            <button class="btn btn--primary" id="btn-error-retry" type="button">Tentar novamente</button>
+          </section>
+        </aside>
+
+        <section class="stage" id="stage">
+          <div class="stage__slot" id="site-slot" aria-label="Site OCTOS integrado"></div>
+          <div class="stage__placeholder" id="stage-placeholder" hidden>
+            <p id="stage-placeholder-text">Carregando o site OCTOS…</p>
+            <button class="btn btn--ghost" id="btn-reload-site" type="button">Recarregar site</button>
+          </div>
+        </section>
+      </main>
+
+      <footer class="statusbar">
+        <span id="footer-url">—</span>
+        <span class="statusbar__right">
+          <span id="footer-storage">Armazenamento seguro</span>
+          <span class="statusbar__sep" aria-hidden="true">|</span>
+          <span id="footer-platform">Windows 11 • Electron</span>
+        </span>
+      </footer>
+    </div>
+
+    <!-- Modal de configurações -->
+    <div class="modal" id="modal-settings" hidden>
+      <div class="modal__card" role="dialog" aria-modal="true" aria-labelledby="settings-title">
+        <h2 class="modal__title" id="settings-title">Configurações da conexão</h2>
+        <p class="modal__text">
+          Informe a URL oficial do OCTOS. A alteração é salva no computador e não exige recompilar o aplicativo.
+        </p>
+        <form class="form" id="form-settings" novalidate>
+          <label class="field">
+            <span class="field__label">URL do OCTOS</span>
+            <input class="field__input" id="settings-url" type="url" placeholder="https://octos-access-core.base44.app" required />
+          </label>
+          <p class="hint" id="settings-appid">App ID Base44: —</p>
+          <p class="hint" id="settings-error" hidden></p>
+          <div class="modal__actions">
+            <button class="btn btn--ghost" type="button" id="btn-settings-cancel">Cancelar</button>
+            <button class="btn btn--primary" type="submit">Salvar e conectar</button>
+          </div>
+        </form>
+      </div>
+    </div>
+
+    <!-- Modal de recuperação de senha -->
+    <div class="modal" id="modal-forgot" hidden>
+      <div class="modal__card" role="dialog" aria-modal="true" aria-labelledby="forgot-title">
+        <h2 class="modal__title" id="forgot-title">Recuperar senha</h2>
+        <p class="modal__text">Enviaremos o link de recuperação oficial do OCTOS para o seu e-mail.</p>
+        <form class="form" id="form-forgot" novalidate>
+          <label class="field">
+            <span class="field__label">E-mail da conta</span>
+            <input class="field__input" id="forgot-email" type="email" autocomplete="username" placeholder="voce@empresa.com" required />
+          </label>
+          <p class="hint" id="forgot-message" hidden></p>
+          <div class="modal__actions">
+            <button class="btn btn--ghost" type="button" id="btn-forgot-cancel">Fechar</button>
+            <button class="btn btn--primary" type="submit">Enviar link</button>
+          </div>
+        </form>
+      </div>
+    </div>
+
+    <!-- Modal de cadastro -->
+    <div class="modal" id="modal-register" hidden>
+      <div class="modal__card" role="dialog" aria-modal="true" aria-labelledby="register-title">
+        <h2 class="modal__title" id="register-title">Criar conta no OCTOS</h2>
+        <p class="modal__text">O cadastro usa o endpoint oficial do OCTOS. A conta criada é a mesma usada no site.</p>
+        <form class="form" id="form-register" novalidate>
+          <label class="field">
+            <span class="field__label">Nome completo</span>
+            <input class="field__input" id="register-name" type="text" autocomplete="name" maxlength="120" placeholder="Seu nome" />
+          </label>
+          <label class="field">
+            <span class="field__label">E-mail</span>
+            <input class="field__input" id="register-email" type="email" autocomplete="email" placeholder="voce@empresa.com" required />
+          </label>
+          <label class="field">
+            <span class="field__label">Senha</span>
+            <input class="field__input" id="register-password" type="password" autocomplete="new-password" placeholder="Mínimo de 8 caracteres" required />
+          </label>
+          <p class="hint" id="register-message" hidden></p>
+          <div class="modal__actions">
+            <button class="btn btn--ghost" type="button" id="btn-register-cancel">Cancelar</button>
+            <button class="btn btn--primary" type="submit">Criar conta</button>
+          </div>
+        </form>
+        <button class="link" id="btn-register-site" type="button">Prefiro usar o cadastro oficial no site</button>
+      </div>
+    </div>
+
+    <div class="toast" id="toast" role="status" aria-live="polite" hidden></div>
+
+    <script src="renderer.js"></script>
+  </body>
+</html>
