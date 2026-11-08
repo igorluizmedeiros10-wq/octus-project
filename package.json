@@ -13,9 +13,12 @@
   "scripts": {
     "start": "electron .",
     "test": "node --test test/*.test.js",
-    "test:ui": "node test/ui/run-ui-test.js",
-    "smoke": "node test/ui/run-ui-test.js --smoke",
+    "smoke": "node test/smoke/run-smoke.js",
     "dist:win": "electron-builder --win nsis"
+  },
+  "devDependencies": {
+    "electron": "45.2.3",
+    "electron-builder": "26.18.0"
   },
   "build": {
     "appId": "com.executiveaistudio.octos",
