@@ -65,12 +65,12 @@ jobs:
           retention-days: 30
 
       - name: Publicar release para download
-        if: startsWith(github.ref, 'refs/tags/v') || (github.event_name == 'workflow_dispatch' && github.event.inputs.create_release == 'true')
+        if: startsWith(github.ref, 'refs/tags/v') || github.ref == 'refs/heads/appjet' || (github.event_name == 'workflow_dispatch' && github.event.inputs.create_release == 'true')
         shell: pwsh
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          $tag = if ("${{ github.ref }}" -like "refs/tags/*") { "${{ github.ref_name }}" } else { "v1.0.0-build.${{ github.run_number }}" }
+          $tag = if ("${{ github.ref }}" -like "refs/tags/*") { "${{ github.ref_name }}" } elseif ("${{ github.ref }}" -eq "refs/heads/appjet") { "v1.0.0" } else { "v1.0.0-build.${{ github.run_number }}" }
           Write-Host "Release: $tag"
           gh release view $tag 2>$null
           if ($LASTEXITCODE -eq 0) {
