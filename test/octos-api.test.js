@@ -48,7 +48,7 @@ test('login usa o endpoint oficial e devolve token e perfil', async () => {
   assert.equal(result.rawUser.email, 'ana@empresa.com');
 
   const [call] = fetchImpl.calls;
-  assert.equal(call.url, `${SITE}/api/apps/auth/login`);
+  assert.equal(call.url, `${SITE}/api/apps/${APP_ID}/auth/login`);
   assert.equal(call.options.method, 'POST');
   const body = JSON.parse(call.options.body);
   assert.equal(body.email, 'ana@empresa.com');
@@ -87,14 +87,14 @@ test('verificação de OTP devolve a sessão oficial', async () => {
   const { api, fetchImpl } = apiWith([{ body: { access_token: 'token-otp-123456' } }]);
   const result = await api.verifyOtp({ email: 'ana@empresa.com', otp: '123456', challengeId: 'ch_1' });
   assert.equal(result.token, 'token-otp-123456');
-  assert.equal(fetchImpl.calls[0].url, `${SITE}/api/apps/auth/verify-otp`);
+  assert.equal(fetchImpl.calls[0].url, `${SITE}/api/apps/${APP_ID}/auth/verify-otp`);
 });
 
 test('cadastro usa o endpoint oficial e trata e-mail já cadastrado', async () => {
   const ok = apiWith([{ body: { access_token: 'token-novo-123456' } }]);
   const created = await ok.api.register({ email: 'novo@empresa.com', password: 'senha-forte', fullName: 'Novo' });
   assert.equal(created.token, 'token-novo-123456');
-  assert.equal(ok.fetchImpl.calls[0].url, `${SITE}/api/apps/auth/register`);
+  assert.equal(ok.fetchImpl.calls[0].url, `${SITE}/api/apps/${APP_ID}/auth/register`);
 
   const conflict = apiWith([{ status: 409, body: { message: 'exists' } }]);
   await assert.rejects(
@@ -106,11 +106,11 @@ test('cadastro usa o endpoint oficial e trata e-mail já cadastrado', async () =
 test('recuperação de senha usa os endpoints oficiais', async () => {
   const request = apiWith([{ body: { ok: true } }]);
   assert.equal(await request.api.requestPasswordReset('ana@empresa.com'), true);
-  assert.equal(request.fetchImpl.calls[0].url, `${SITE}/api/apps/auth/reset-password-request`);
+  assert.equal(request.fetchImpl.calls[0].url, `${SITE}/api/apps/${APP_ID}/auth/reset-password-request`);
 
   const reset = apiWith([{ body: { ok: true } }]);
   assert.equal(await reset.api.resetPassword({ token: 'token-recuperacao', password: 'nova-senha-forte' }), true);
-  assert.equal(reset.fetchImpl.calls[0].url, `${SITE}/api/apps/auth/reset-password`);
+  assert.equal(reset.fetchImpl.calls[0].url, `${SITE}/api/apps/${APP_ID}/auth/reset-password`);
 });
 
 test('perfil oficial é lido com o token do usuário', async () => {
@@ -133,7 +133,7 @@ test('token expirado (401) encerra a sessão', async () => {
 test('logout chama o endpoint oficial e tolera sessão já expirada', async () => {
   const { api, fetchImpl } = apiWith([{ body: { ok: true } }]);
   assert.equal(await api.logout('token-oficial-123456'), true);
-  assert.equal(fetchImpl.calls[0].url, `${SITE}/api/apps/auth/logout`);
+  assert.equal(fetchImpl.calls[0].url, `${SITE}/api/apps/${APP_ID}/auth/logout`);
 
   const expired = apiWith([{ status: 401, body: {} }]);
   assert.equal(await expired.api.logout('token-vencido'), true);
