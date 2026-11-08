@@ -15,15 +15,22 @@ const electronBinary = require('electron');
 const root = path.join(__dirname, '..', '..');
 const userDataDir = fs.mkdtempSync(path.join(os.tmpdir(), 'octos-smoke-'));
 const useXvfb = process.platform === 'linux' && !process.env.DISPLAY;
+const display = useXvfb ? ':99' : process.env.DISPLAY;
 
 const args = [root, '--smoke-test', '--no-sandbox'];
-const command = useXvfb ? 'xvfb-run' : electronBinary;
-const commandArgs = useXvfb ? ['-a', electronBinary, ...args] : args;
 
-const child = spawn(command, commandArgs, {
+let xvfb = null;
+if (useXvfb) {
+  xvfb = spawn('Xvfb', [display, '-screen', '0', '1440x900x24', '-nolisten', 'tcp'], {
+    stdio: 'ignore',
+  });
+}
+
+const child = spawn(electronBinary, args, {
   cwd: root,
   env: {
     ...process.env,
+    DISPLAY: display,
     OCTOS_USER_DATA_DIR: userDataDir,
     OCTOS_HEADLESS: '1',
     OCTOS_SMOKE_MS: process.env.OCTOS_SMOKE_MS || '20000',
