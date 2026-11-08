@@ -1,7 +1,6 @@
 'use strict';
 
 const path = require('node:path');
-const fs = require('node:fs');
 const {
   app,
   BrowserWindow,
@@ -11,13 +10,12 @@ const {
   shell,
 } = require('electron');
 
-const { ConfigStore } = require('./lib/config-store');
+const { ConfigStore, ConfigError } = require('./lib/config-store');
 const { SecureStore, createElectronCrypto, createFallbackCrypto } = require('./lib/secure-store');
 const { OctosApi, OctosError } = require('./lib/octos-api');
 const { SessionManager, STATUS } = require('./lib/session-manager');
 const { createMainWindow } = require('./windows/main-window');
 const { OctosSiteView } = require('./windows/octos-site-view');
-const { validateOctosUrl } = require('./lib/url-policy');
 
 const PARTITION = 'persist:octos';
 const ALLOWED_ROUTES = new Set(['/', '/login', '/register', '/_authed', '/_authed/configuracoes']);
@@ -39,7 +37,6 @@ let api = null;
 let sessions = null;
 let storagePollTimer = null;
 let refreshTimer = null;
-let quitting = false;
 
 /* ------------------------------------------------------------------ */
 /* Utilidades                                                          */
@@ -47,13 +44,13 @@ let quitting = false;
 
 function errorPayload(error) {
   if (error instanceof OctosError) {
-    return { code: error.code, message: error.message, details: error.details || null };
+    return { code: error.code, message: error.message };
   }
-  return {
-    code: 'unexpected_error',
-    message: 'Não foi possível concluir a operação. Tente novamente.',
-    details: null,
-  };
+  if (error instanceof ConfigError) {
+    return { code: error.code, message: error.message };
+  }
+  console.error('[octos] erro inesperado:', error);
+  return { code: 'unexpected_error', message: 'Não foi possível concluir a operação. Tente novamente.' };
 }
 
 async function guard(handler) {
@@ -61,14 +58,13 @@ async function guard(handler) {
     const data = await handler();
     return { ok: true, ...(data || {}) };
   } catch (error) {
-    if (!(error instanceof OctosError)) console.error('[octos] erro inesperado:', error);
     return { ok: false, error: errorPayload(error) };
   }
 }
 
 function requireString(value, field, max) {
   if (typeof value !== 'string' || !value.trim() || value.length > max) {
-    throw new OctosError('invalid_input', `Informe um valor válido para ${field}.`);
+    throw new OctosError(`Informe um valor válido para ${field}.`, { code: 'invalid_input' });
   }
   return value.trim();
 }
@@ -101,8 +97,10 @@ function bootstrap() {
   configStore = new ConfigStore({ filePath: path.join(userData, 'config.json') });
 
   const fallback = createFallbackCrypto({ keyPath: path.join(userData, 'session.key') });
-  const cryptoProvider = createElectronCrypto(safeStorage, fallback);
-  secureStore = new SecureStore({ filePath: path.join(userData, 'session.bin'), cryptoProvider });
+  secureStore = new SecureStore({
+    filePath: path.join(userData, 'session.bin'),
+    cryptoProvider: createElectronCrypto(safeStorage, fallback),
+  });
 
   const config = configStore.read();
   api = new OctosApi({ siteUrl: config.octosUrl, platformUrl: config.platformUrl, appId: config.appId });
@@ -120,9 +118,7 @@ function handleSiteEvent(type, payload) {
     // O site oficial pode concluir o login Google dentro da janela integrada.
     sessions.syncFromStorage().catch(() => {});
   }
-  if (type === 'failed') {
-    broadcastState();
-  }
+  if (type === 'failed') broadcastState();
   if (mainWindow && !mainWindow.isDestroyed()) {
     mainWindow.webContents.send('octos:site-event', { type, payload });
   }
@@ -144,9 +140,6 @@ function createWindow() {
   });
   siteView.load(config.octosUrl);
 
-  mainWindow.on('resize', () => {
-    if (siteView) siteView.setBounds(siteView.bounds);
-  });
   mainWindow.on('closed', () => {
     mainWindow = null;
     if (siteView) siteView.destroy();
@@ -186,6 +179,8 @@ function registerIpc() {
           userEmail: state.user ? state.user.email : null,
           site: siteView ? siteView.info() : null,
           renderer: mainWindow && !mainWindow.isDestroyed() ? mainWindow.webContents.getURL() : null,
+          electron: process.versions.electron,
+          chrome: process.versions.chrome,
         },
       };
     })
@@ -196,9 +191,8 @@ function registerIpc() {
       const email = requireString(payload && payload.email, 'e-mail', 320);
       const password = requireString(payload && payload.password, 'senha', 256);
       const result = await sessions.signIn({ email, password });
-      if (!result.requiresOtp && result.token) {
-        await siteView.injectToken(result.token);
-      }
+      const token = sessions.currentToken();
+      if (!result.requiresOtp && token && siteView) await siteView.injectToken(token);
       return publicSnapshot();
     })
   );
@@ -207,8 +201,9 @@ function registerIpc() {
     guard(async () => {
       const email = requireString(payload && payload.email, 'e-mail', 320);
       const otp = requireString(payload && payload.otp, 'código', 12);
-      const result = await sessions.verifyOtp({ email, otp, challengeId: payload.challengeId });
-      if (result.token) await siteView.injectToken(result.token);
+      await sessions.verifyOtp({ email, otp, challengeId: payload.challengeId });
+      const token = sessions.currentToken();
+      if (token && siteView) await siteView.injectToken(token);
       return publicSnapshot();
     })
   );
@@ -219,7 +214,7 @@ function registerIpc() {
       const password = requireString(payload && payload.password, 'senha', 256);
       const fullName = typeof payload.fullName === 'string' ? payload.fullName.trim().slice(0, 120) : '';
       const result = await sessions.register({ email, password, fullName });
-      if (result.token) await siteView.injectToken(result.token);
+      if (result.token && siteView) await siteView.injectToken(result.token);
       return { ...publicSnapshot(), registration: { requiresVerification: Boolean(result.requiresVerification) } };
     })
   );
@@ -244,6 +239,7 @@ function registerIpc() {
   ipcMain.handle('octos:sign-out', () =>
     guard(async () => {
       await sessions.signOut();
+      if (siteView) await siteView.clearSessionData();
       return publicSnapshot();
     })
   );
@@ -261,6 +257,7 @@ function registerIpc() {
       const next = configStore.save({ octosUrl: payload && payload.octosUrl });
       if (next.origin !== previous.origin) {
         await sessions.signOut();
+        if (siteView) await siteView.clearSessionData();
       }
       api = new OctosApi({ siteUrl: next.octosUrl, platformUrl: next.platformUrl, appId: next.appId });
       sessions.api = api;
@@ -280,7 +277,7 @@ function registerIpc() {
     guard(async () => {
       const route = typeof payload === 'string' ? payload : '';
       if (!ALLOWED_ROUTES.has(route)) {
-        throw new OctosError('invalid_route', 'Rota do OCTOS não permitida.');
+        throw new OctosError('Rota do OCTOS não permitida.', { code: 'invalid_route' });
       }
       const config = configStore.read();
       const target = route === '/' ? config.octosUrl : `${config.octosUrl}${route}`;
@@ -296,7 +293,7 @@ function registerIpc() {
     guard(async () => {
       const target = typeof payload === 'string' ? payload : '';
       if (!/^https:\/\//i.test(target)) {
-        throw new OctosError('invalid_url', 'Apenas endereços HTTPS podem ser abertos.');
+        throw new OctosError('Apenas endereços HTTPS podem ser abertos.', { code: 'invalid_url' });
       }
       await shell.openExternal(target);
       return { opened: true };
@@ -340,9 +337,7 @@ if (!hasLock) {
 
     if (SMOKE_TEST) {
       setTimeout(() => {
-        const payload = { smoke: true, ...publicSnapshot() };
-        process.stdout.write(`${JSON.stringify(payload)}\n`);
-        quitting = true;
+        process.stdout.write(`${JSON.stringify({ smoke: true, ...publicSnapshot() })}\n`);
         app.quit();
       }, Number(process.env.OCTOS_SMOKE_MS || 9000));
     }
@@ -353,14 +348,11 @@ if (!hasLock) {
   });
 
   app.on('before-quit', () => {
-    quitting = true;
     if (storagePollTimer) clearInterval(storagePollTimer);
     if (refreshTimer) clearInterval(refreshTimer);
   });
 
   app.on('activate', () => {
-    if (BrowserWindow.getAllWindows().length === 0 && !quitting) createWindow();
+    if (BrowserWindow.getAllWindows().length === 0) createWindow();
   });
 }
-
-module.exports = { PARTITION };
